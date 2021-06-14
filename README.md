@@ -1,0 +1,1 @@
+# Newsletter mailer in Rust
