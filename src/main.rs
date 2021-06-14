@@ -1,18 +1,15 @@
-use actix_web::{web, App, HttpRequest, HttpServer, Responder};
+use std::net::TcpListener;
 
-async fn greet(req: HttpRequest) -> impl Responder {
-    let name = req.match_info().get("name").unwrap_or("World");
-    format!("Hello {}!", &name)
-}
+use rust_zero2prod::configuration;
+use rust_zero2prod::startup::run;
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
-    HttpServer::new(|| {
-        App::new()
-            .route("/", web::get().to(greet))
-            .route("/{name}", web::get().to(greet))
-    })
-    .bind(("127.0.0.1", 8080))?
-    .run()
-    .await
+    // Panic if we can't read configuration
+    let configuration = configuration::get_configuration().expect("Failed to read configuration.");
+    // We have removed the hard-coded `8000` - it's now coming from our settings!
+    let address = format!("127.0.0.1:{}", configuration.application_port);
+    println!("Listening on http://{}", address);
+    let listener = TcpListener::bind(address)?;
+    run(listener)?.await
 }
