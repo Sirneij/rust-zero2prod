@@ -6,11 +6,6 @@ use std::net::TcpListener;
 async fn health_check_works() {
     // Arrange
     let address = spawn_app();
-    let configuration = get_configuration().expect("Failed to read configuration");
-    let connection_string = configuration.database.connection_string();
-    let connection = PgConnection::connect(&connection_string)
-        .await
-        .expect("Failed to connect to Postgres.");
     let client = reqwest::Client::new();
     // Act
     let response = client
@@ -37,8 +32,13 @@ fn spawn_app() -> String {
 #[actix_rt::test]
 async fn subscribe_returns_a_200_for_valid_form_data() {
     let address = spawn_app();
+    let configuration = get_configuration().expect("Failed to read configuration");
+    let connection_string = configuration.database.connection_string();
+    let mut connection = PgConnection::connect(&connection_string)
+        .await
+        .expect("Failed to connect to Postgres.");
     let client = reqwest::Client::new();
-    let body = "name=ay%20joseph&email=josephayo%40gmail.com";
+    let body = "name=ayo%20joseph&email=josephayo%40gmail.com";
 
     let response = client
         .post(&format!("{}/subscriptions", &address))
@@ -47,8 +47,15 @@ async fn subscribe_returns_a_200_for_valid_form_data() {
         .send()
         .await
         .expect("Failed to execute request.");
+
     // Assert
     assert_eq!(200, response.status().as_u16());
+    let saved = sqlx::query!("SELECT email, name FROM subscriptions",)
+        .fetch_one(&mut connection)
+        .await
+        .expect("Failed to fetch saved subscription.");
+    assert_eq!(saved.email, "josephayo@gmail.com");
+    assert_eq!(saved.name, "ayo joseph");
 }
 
 #[actix_rt::test]
